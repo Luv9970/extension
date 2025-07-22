@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Image Alt Text Generator",
+  "description": "Generate alt text from image via right-click",
+  "version": "1.0",
+  "permissions": ["contextMenus", "scripting", "activeTab","storage","clipboardWrite"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Alt Text Generator"
+  }
+}
