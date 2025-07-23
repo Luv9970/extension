@@ -1,51 +1,163 @@
-document.getElementById("verifyBtn").addEventListener("click", async () => {
-  const apiKey = document.getElementById("apiKeyInput").value.trim();
-  const status = document.getElementById("status");
+// document.getElementById("verifyBtn").addEventListener("click", async () => {
+//   const apiKey = document.getElementById("apiKeyInput").value.trim();
+//   const status = document.getElementById("status");
 
-  if (!apiKey) {
-    status.textContent = "Please enter an API key.";
-    status.style.color = "red";
+//   if (!apiKey) {
+//     status.textContent = "Please enter an API key.";
+//     status.style.color = "red";
+//     return;
+//   }
+
+//   status.textContent = "⏳ Verifying...";
+//   status.style.color = "black";
+
+//   try {
+//     const res = await fetch("https://alt-magic-api-eabaa2c8506a.herokuapp.com/chrome-extension-verify-api-key", {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/json"
+//       },
+//       body: JSON.stringify({ api_key: apiKey })
+//     });
+
+//     if (!res.ok) {
+//       throw new Error("API key verification failed");
+//     }
+
+//     const data = await res.json();
+
+//     // Save both API key and account details
+//     await chrome.storage.local.set({
+//       apiKey,
+//       account: data.user_details
+//     });
+
+//     status.textContent = "Key verified and saved!";
+//     status.style.color = "green";
+
+//     const { pendingImageUrl } = await chrome.storage.local.get("pendingImageUrl");
+//       if (pendingImageUrl) {
+//         chrome.runtime.sendMessage({ action: "runAltText", imageUrl: pendingImageUrl });
+//         await chrome.storage.local.remove("pendingImageUrl");
+//       }
+
+//       setTimeout(() => window.close(), 3000);
+
+//   } catch (err) {
+//     console.error("Verification error:", err);
+//     status.textContent = "Unable to verify the key.";
+//     status.style.color = "red";
+//   }
+// });
+
+
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const container = document.getElementById("main-container");
+
+  const { apiKey, account } = await chrome.storage.local.get(["apiKey", "account"]);
+
+  if (apiKey && account) {
+    renderVerifiedUI(container, account);
     return;
   }
 
-  status.textContent = "⏳ Verifying...";
-  status.style.color = "black";
+  // If not verified, show input form
+  container.innerHTML = `
+    <div class="section">
+        <div class="section-title">Enter your API key</div>
+        <div class="api-key-group">
+            <input type="text" id="apiKeyInput" class="api-key-input" />
+            <button id="verifyBtn" class="verify-btn">Verify</button>
+        </div>
+        <p class="api-note">Don’t have one? <a class="api-link" href="https://altmagic.vercel.app" target="_blank">Get an API key</a></p>
+        <div id="status" class="status-message"></div>
+    </div>
+  `;
 
-  try {
-    const res = await fetch("https://alt-magic-api-eabaa2c8506a.herokuapp.com/chrome-extension-verify-api-key", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ api_key: apiKey })
-    });
+  document.getElementById("verifyBtn").addEventListener("click", async () => {
+    const apiKey = document.getElementById("apiKeyInput").value.trim();
+    const status = document.getElementById("status");
 
-    if (!res.ok) {
-      throw new Error("API key verification failed");
+    if (!apiKey) {
+      status.textContent = "Please enter an API key.";
+      status.style.color = "red";
+      return;
     }
 
-    const data = await res.json();
+    status.textContent = "⏳ Verifying...";
+    status.style.color = "black";
 
-    // Save both API key and account details
-    await chrome.storage.local.set({
-      apiKey,
-      account: data.user_details
-    });
+    try {
+      const res = await fetch("https://alt-magic-api-eabaa2c8506a.herokuapp.com/chrome-extension-verify-api-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: apiKey }),
+      });
 
-    status.textContent = "Key verified and saved!";
-    status.style.color = "green";
+      if (!res.ok) throw new Error("API key verification failed");
 
-    const { pendingImageUrl } = await chrome.storage.local.get("pendingImageUrl");
+      const data = await res.json();
+
+      const userDetails = data.user_details;
+      await chrome.storage.local.set({
+        apiKey,
+        account: userDetails,
+      });
+
+      // Check for pending image and trigger generation
+      const { pendingImageUrl } = await chrome.storage.local.get("pendingImageUrl");
       if (pendingImageUrl) {
         chrome.runtime.sendMessage({ action: "runAltText", imageUrl: pendingImageUrl });
         await chrome.storage.local.remove("pendingImageUrl");
       }
 
+      // Replace input UI with verified UI
+      renderVerifiedUI(container, userDetails ,apiKey);
+
+      // Auto-close after 3s (optional)
       setTimeout(() => window.close(), 3000);
 
-  } catch (err) {
-    console.error("Verification error:", err);
-    status.textContent = "Unable to verify the key.";
-    status.style.color = "red";
-  }
+    } catch (err) {
+      console.error("Verification error:", err);
+      status.textContent = "❌ Unable to verify the key.";
+      status.style.color = "red";
+    }
+  });
 });
+
+function renderVerifiedUI(container, userDetails , apiKey) {
+  const initials = userDetails.user_name
+    .split(" ")
+    .map(word => word[0])
+    .join("")
+    .toUpperCase();
+
+  container.innerHTML = `
+    <div class="section">
+        <div class="section-title">Verified Account</div>
+        <div class="account-info">
+            <div class="avatar">${initials}</div>
+            <div class="account-details">
+                <h3>${userDetails.user_name}</h3>
+                <p>${userDetails.email}</p>
+            </div>
+        </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+        <div class="section-title">Alt Text Credits</div>
+        <div class="credits-display">${userDetails.credits_available ?? "0"}</div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+        <a href="#" class="remove-link" id="removeApiKey">Remove Key</a>
+        <span class="remove-note">Clear saved credentials.</span>
+    </div>
+  `;
+
+  document.getElementById("removeApiKey").addEventListener("click", async () => {
+    await chrome.storage.local.remove(["apiKey", "account"]);
+    window.location.reload();
+  });
+}
