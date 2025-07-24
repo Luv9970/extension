@@ -5,6 +5,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (apiKey && account) {
     renderVerifiedUI(container, account);
+    
+    // Listen for credit updates from background script
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.action === "updateCredits") {
+        updateCreditsDisplay(message.credits);
+      }
+    });
+    
     return;
   }
 
@@ -59,7 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       // Replace input UI with verified UI
-      renderVerifiedUI(container, userDetails ,apiKey);
+      renderVerifiedUI(container, userDetails);
 
       // Auto-close after 3s (optional)
       setTimeout(() => window.close(), 3000);
@@ -72,7 +80,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 });
 
-function renderVerifiedUI(container, userDetails , apiKey) {
+function renderVerifiedUI(container, userDetails) {
   const initials = userDetails.user_name
     .split(" ")
     .map(word => word[0])
@@ -93,7 +101,7 @@ function renderVerifiedUI(container, userDetails , apiKey) {
     <div class="divider"></div>
     <div class="section">
         <div class="section-title">Alt Text Credits</div>
-        <div class="credits-display">${userDetails.credits_available ?? "0"}</div>
+        <div class="credits-display" id="creditsDisplay">${userDetails.credits_available ?? "0"}</div>
     </div>
     <div class="divider"></div>
     <div class="section">
@@ -106,4 +114,21 @@ function renderVerifiedUI(container, userDetails , apiKey) {
     await chrome.storage.local.remove(["apiKey", "account"]);
     window.location.reload();
   });
+}
+
+function updateCreditsDisplay(newCredits) {
+  const creditsDisplay = document.getElementById("creditsDisplay");
+  if (creditsDisplay) {
+    creditsDisplay.textContent = newCredits;
+    
+    // Optional: Add a brief highlight animation to show the update
+    creditsDisplay.style.backgroundColor = "#4CAF50";
+    creditsDisplay.style.color = "white";
+    creditsDisplay.style.transition = "all 0.3s ease";
+    
+    setTimeout(() => {
+      creditsDisplay.style.backgroundColor = "";
+      creditsDisplay.style.color = "";
+    }, 1000);
+  }
 }

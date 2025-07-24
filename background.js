@@ -8,15 +8,104 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "generateAltText") {
-    const { apiKey } = await chrome.storage.local.get(["apiKey"]);
+    const { apiKey, account } = await chrome.storage.local.get(["apiKey", "account"]);
+    
+    // console.log("API Key:", apiKey ? "Present" : "Missing");
+    // console.log("Account:", account);
 
     // Save image URL temporarily
     await chrome.storage.local.set({ pendingImageUrl: info.srcUrl });
 
-    if (!apiKey) {
+    if (!apiKey || !account) {
+      // console.log("Missing credentials, opening popup");
       chrome.action.openPopup();
     } else {
-      runAltTextInjection(tab.id, info.srcUrl);
+      const imageUrl = info.srcUrl;
+      // console.log("Image URL:", imageUrl);
+
+      // Handle different image types
+      let fileExtension, imageName;
+      
+      if (imageUrl.startsWith('data:image/')) {
+        // For base64 data URLs
+        const mimeMatch = imageUrl.match(/data:image\/([^;]+)/);
+        fileExtension = mimeMatch ? mimeMatch[1] : 'jpg';
+        imageName = `image.${fileExtension}`;
+      } else {
+        // For regular URLs
+        fileExtension = imageUrl.split('.').pop().split('?')[0] || 'jpg';
+        imageName = imageUrl.split('/').pop().split('?')[0] || `image.${fileExtension}`;
+      }
+
+      const userId = account?.email;
+
+      const requestBody = {
+        image: imageUrl.startsWith('data:image/') ? imageUrl : "",
+        title: "",
+        context: "",
+        keywords: [],
+        user_id: userId,
+        image_name: imageName,
+        image_type: imageUrl.startsWith('data:image/') ? "base64" : "url",
+        image_url: imageUrl.startsWith('data:image/') ? "" : imageUrl,
+        alt_quality: "medium",
+        file_extension: fileExtension,
+        image_id: "",
+        source: "",
+        site_id: "",
+        language: "en",
+        model_type: "gemini",
+        product_name: ""
+      };
+
+      try {
+        console.log("Making API request with body:", requestBody);
+        
+        // Show loading state first
+        runAltTextInjection(tab.id, imageUrl);
+        
+        const response = await fetch("https://alt-magic-api-eabaa2c8506a.herokuapp.com/alt-generator-chrm-ext", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        console.log("Response status:", response.status);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("API response data:", data);
+
+        // Update the loading state with the result
+        updateAltTextResult(tab.id, data?.alt_text || "Alt text not found");
+        
+        // Update credits in storage and notify popup
+        if (data?.credits_available !== undefined) {
+          const { account } = await chrome.storage.local.get(["account"]);
+          if (account) {
+            account.credits_available = data.credits_available;
+            await chrome.storage.local.set({ account });
+            
+            // Send message to popup to update credits display
+            chrome.runtime.sendMessage({
+              action: "updateCredits",
+              credits: data.credits_available
+            }).catch(() => {
+              // Popup might not be open, ignore the error
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Alt text generation failed:", error);
+        // Update the loading state with error message
+        updateAltTextResult(tab.id, "Error generating alt text: " + error.message);
+      }
     }
   }
 });
@@ -25,17 +114,86 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "runAltText" && message.imageUrl) {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length > 0) {
-        runAltTextInjection(tabs[0].id, message.imageUrl);
+        runAltTextInjection(tabs[0].id, message.imageUrl, "This is a generated alt description.");
       }
     });
   }
 });
 
-function runAltTextInjection(tabId, imageUrl) {
+function updateAltTextResult(tabId, altText) {
   chrome.scripting.executeScript({
     target: { tabId },
-    args: [imageUrl],
-    func: (imageUrl) => {
+    args: [altText],
+    func: (altText) => {
+      const loader = document.getElementById("alt-loader");
+      if (loader) {
+        const textSpan = loader.querySelector("span");
+        
+        if (textSpan) {
+          // Create close button
+          const closeBtn = document.createElement("button");
+          closeBtn.innerText = "✖";
+          Object.assign(closeBtn.style, {
+            background: "transparent",
+            border: "none",
+            color: "#fff",
+            fontWeight: "bold",
+            fontSize: "16px",
+            cursor: "pointer",
+            outline: "none",
+            marginRight: "16px",
+          });
+          closeBtn.addEventListener("click", () => {
+            loader.remove();
+          });
+
+          // Create copy button
+          const copyBtn = document.createElement("button");
+          copyBtn.innerText = "📋";
+          Object.assign(copyBtn.style, {
+            background: "transparent",
+            border: "none",
+            color: "#fff",
+            fontWeight: "bold",
+            fontSize: "16px",
+            cursor: "pointer",
+            marginLeft: "16px",
+            outline: "none",
+          });
+          copyBtn.disabled = false;
+
+          copyBtn.addEventListener("click", () => {
+            const textToCopy = textSpan.innerText.replace(/^✅ Alt text: /, "");
+            navigator.clipboard.writeText(textToCopy);
+            copyBtn.innerText = "✔️";
+            setTimeout(() => (copyBtn.innerText = "📋"), 1000);
+          });
+
+          // Update text content
+          textSpan.innerText = "✅ Alt text: " + altText;
+          
+          // Clear loader and rebuild with all elements
+          loader.innerHTML = "";
+          loader.appendChild(closeBtn);
+          loader.appendChild(textSpan);
+          loader.appendChild(copyBtn);
+        }
+      }
+    }
+  });
+}
+
+function runAltTextInjection(tabId, imageUrl, altText = null) {
+  chrome.scripting.executeScript({
+    target: { tabId },
+    args: [imageUrl, altText],
+    func: (imageUrl, altText) => {
+      // Remove any existing loader first
+      const existingLoader = document.getElementById("alt-loader");
+      if (existingLoader) {
+        existingLoader.remove();
+      }
+
       const loader = document.createElement("div");
       loader.id = "alt-loader";
       Object.assign(loader.style, {
@@ -56,7 +214,6 @@ function runAltTextInjection(tabId, imageUrl) {
       });
 
       const textSpan = document.createElement("span");
-      textSpan.innerText = "⏳ Generating alt text...";
       Object.assign(textSpan.style, {
         flex: "1",
         textAlign: "center",
@@ -102,22 +259,21 @@ function runAltTextInjection(tabId, imageUrl) {
         setTimeout(() => (copyBtn.innerText = "📋"), 1000);
       });
 
-      loader.appendChild(textSpan);
-      document.body.appendChild(loader);
-
-      setTimeout(() => {
-        const altText = "This is a generated alt description.";
+      // Show loading state or final result
+      if (altText) {
+        // Show final result immediately (for fallback cases)
         textSpan.innerText = "✅ Alt text: " + altText;
         copyBtn.disabled = false;
-        loader.innerHTML = "";
         loader.appendChild(closeBtn);
         loader.appendChild(textSpan);
         loader.appendChild(copyBtn);
-      }, 2000);
+      } else {
+        // Show loading state
+        textSpan.innerText = "⏳ Generating alt text...";
+        loader.appendChild(textSpan);
+      }
+
+      document.body.appendChild(loader);
     },
   });
 }
-
-
-
-
