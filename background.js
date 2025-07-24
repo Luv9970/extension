@@ -31,10 +31,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         const mimeMatch = imageUrl.match(/data:image\/([^;]+)/);
         fileExtension = mimeMatch ? mimeMatch[1] : 'jpg';
         imageName = `image.${fileExtension}`;
+        // console.log("Base64 image detected - Extension:", fileExtension, "Name:", imageName);
       } else {
         // For regular URLs
         fileExtension = imageUrl.split('.').pop().split('?')[0] || 'jpg';
         imageName = imageUrl.split('/').pop().split('?')[0] || `image.${fileExtension}`;
+        // console.log("Regular URL image - Extension:", fileExtension, "Name:", imageName);
       }
 
       const userId = account?.email;
@@ -59,7 +61,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       };
 
       try {
-        console.log("Making API request with body:", requestBody);
+        // console.log("Making API request with body:", requestBody);
         
         // Show loading state first
         runAltTextInjection(tab.id, imageUrl);
@@ -73,33 +75,37 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           body: JSON.stringify(requestBody)
         });
 
-        console.log("Response status:", response.status);
+        // console.log("Response status:", response.status);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log("API response data:", data);
+        // console.log("API response data:", data);
 
         // Update the loading state with the result
         updateAltTextResult(tab.id, data?.alt_text || "Alt text not found");
         
         // Update credits in storage and notify popup
         if (data?.credits_available !== undefined) {
-          const { account } = await chrome.storage.local.get(["account"]);
-          if (account) {
-            account.credits_available = data.credits_available;
-            await chrome.storage.local.set({ account });
+          // console.log("Updating credits from", account?.credits_available, "to", data.credits_available);
+          const { account: currentAccount } = await chrome.storage.local.get(["account"]);
+          if (currentAccount) {
+            currentAccount.credits_available = data.credits_available;
+            await chrome.storage.local.set({ account: currentAccount });
+            // console.log("Credits updated in storage:", currentAccount.credits_available);
             
             // Send message to popup to update credits display
             chrome.runtime.sendMessage({
               action: "updateCredits",
               credits: data.credits_available
             }).catch(() => {
-              // Popup might not be open, ignore the error
+              console.log("Popup not open, skipping credit update message");
             });
           }
+        } else {
+          console.log("No credits_available in API response");
         }
       } catch (error) {
         console.error("Alt text generation failed:", error);
@@ -112,8 +118,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "runAltText" && message.imageUrl) {
+    console.log("Received runAltText message with imageUrl:", message.imageUrl);
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length > 0) {
+        console.log("Running alt text injection for tab:", tabs[0].id);
         runAltTextInjection(tabs[0].id, message.imageUrl, "This is a generated alt description.");
       }
     });
@@ -121,10 +129,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 function updateAltTextResult(tabId, altText) {
+  console.log("Updating alt text result for tab:", tabId, "with text:", altText);
   chrome.scripting.executeScript({
     target: { tabId },
     args: [altText],
     func: (altText) => {
+      console.log("Content script: Updating alt text result with:", altText);
       const loader = document.getElementById("alt-loader");
       if (loader) {
         const textSpan = loader.querySelector("span");
@@ -184,10 +194,12 @@ function updateAltTextResult(tabId, altText) {
 }
 
 function runAltTextInjection(tabId, imageUrl, altText = null) {
+  console.log("Running alt text injection for tab:", tabId, "with altText:", altText);
   chrome.scripting.executeScript({
     target: { tabId },
     args: [imageUrl, altText],
     func: (imageUrl, altText) => {
+      console.log("Content script: Creating loader with imageUrl:", imageUrl, "altText:", altText);
       // Remove any existing loader first
       const existingLoader = document.getElementById("alt-loader");
       if (existingLoader) {
