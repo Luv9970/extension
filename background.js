@@ -8,20 +8,21 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "generateAltText") {
-    const { apiKey, account } = await chrome.storage.local.get(["apiKey", "account"]);
+    const { apiKey, account, selectedLanguage } = await chrome.storage.local.get(["apiKey", "account", "selectedLanguage"]);
     
-    // console.log("API Key:", apiKey ? "Present" : "Missing");
-    // console.log("Account:", account);
+    console.log("API Key:", apiKey ? "Present" : "Missing");
+    console.log("Account:", account);
+    console.log("Selected Language:", selectedLanguage || "en (default)");
 
     // Save image URL temporarily
     await chrome.storage.local.set({ pendingImageUrl: info.srcUrl });
 
     if (!apiKey || !account) {
-      // console.log("Missing credentials, opening popup");
+      console.log("Missing credentials, opening popup");
       chrome.action.openPopup();
     } else {
       const imageUrl = info.srcUrl;
-      // console.log("Image URL:", imageUrl);
+      console.log("Image URL:", imageUrl);
 
       // Handle different image types
       let fileExtension, imageName;
@@ -31,12 +32,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         const mimeMatch = imageUrl.match(/data:image\/([^;]+)/);
         fileExtension = mimeMatch ? mimeMatch[1] : 'jpg';
         imageName = `image.${fileExtension}`;
-        // console.log("Base64 image detected - Extension:", fileExtension, "Name:", imageName);
+        console.log("Base64 image detected - Extension:", fileExtension, "Name:", imageName);
       } else {
         // For regular URLs
         fileExtension = imageUrl.split('.').pop().split('?')[0] || 'jpg';
         imageName = imageUrl.split('/').pop().split('?')[0] || `image.${fileExtension}`;
-        // console.log("Regular URL image - Extension:", fileExtension, "Name:", imageName);
+        console.log("Regular URL image - Extension:", fileExtension, "Name:", imageName);
       }
 
       const userId = account?.email;
@@ -55,13 +56,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         image_id: "",
         source: "",
         site_id: "",
-        language: "en",
+        language: selectedLanguage || "en",
         model_type: "gemini",
         product_name: ""
       };
 
       try {
-        // console.log("Making API request with body:", requestBody);
+        console.log("Making API request with body:", requestBody);
         
         // Show loading state first
         runAltTextInjection(tab.id, imageUrl);
@@ -75,26 +76,26 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           body: JSON.stringify(requestBody)
         });
 
-        // console.log("Response status:", response.status);
+        console.log("Response status:", response.status);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        // console.log("API response data:", data);
+        console.log("API response data:", data);
 
         // Update the loading state with the result
         updateAltTextResult(tab.id, data?.alt_text || "Alt text not found");
         
         // Update credits in storage and notify popup
         if (data?.credits_available !== undefined) {
-          // console.log("Updating credits from", account?.credits_available, "to", data.credits_available);
+          console.log("Updating credits from", account?.credits_available, "to", data.credits_available);
           const { account: currentAccount } = await chrome.storage.local.get(["account"]);
           if (currentAccount) {
             currentAccount.credits_available = data.credits_available;
             await chrome.storage.local.set({ account: currentAccount });
-            // console.log("Credits updated in storage:", currentAccount.credits_available);
+            console.log("Credits updated in storage:", currentAccount.credits_available);
             
             // Send message to popup to update credits display
             chrome.runtime.sendMessage({
