@@ -184,21 +184,20 @@ function updateAltTextResult(tabId, altText) {
             const textToCopy = textSpan.innerText.replace(/^✅ Alt text: /, "");
             navigator.clipboard.writeText(textToCopy);
             copyBtn.innerText = "✔️";
-            setTimeout(() => (copyBtn.innerText = "📋"), 1000);
+            // Keep the checkmark permanently - no timeout
           });
 
           // Update text content
           textSpan.innerText = "✅ Alt text: " + altText;
           
-          // Automatically copy to clipboard
-          const textToCopy = altText;
-          navigator.clipboard.writeText(textToCopy).then(() => {
-            console.log("Alt text automatically copied to clipboard:", textToCopy);
-            // Briefly show that it was copied
+          // Automatically copy to clipboard immediately
+          navigator.clipboard.writeText(altText).then(() => {
+            console.log("✅ Alt text automatically copied to clipboard:", altText);
+            // Show permanent visual feedback that it was automatically copied
             copyBtn.innerText = "✔️";
-            setTimeout(() => (copyBtn.innerText = "📋"), 2000);
+            // No timeout - keep the checkmark permanently
           }).catch((error) => {
-            console.error("Failed to copy alt text to clipboard:", error);
+            console.error("❌ Failed to automatically copy alt text to clipboard:", error);
           });
           
           // Clear loader and rebuild with all elements
@@ -287,7 +286,7 @@ function runAltTextInjection(tabId, imageUrl, altText = null) {
         const textToCopy = textSpan.innerText.replace(/^✅ Alt text: /, "");
         navigator.clipboard.writeText(textToCopy);
         copyBtn.innerText = "✔️";
-        setTimeout(() => (copyBtn.innerText = "📋"), 1000);
+        // Keep the checkmark permanently - no timeout
       });
 
       // Show loading state or final result
