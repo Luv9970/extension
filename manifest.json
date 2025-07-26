@@ -3,7 +3,7 @@
   "name": "Image Alt Text Generator",
   "description": "Generate alt text from image via right-click",
   "version": "1.0",
-  "permissions": ["contextMenus", "scripting", "activeTab", "storage", "clipboardWrite"],
+  "permissions": ["contextMenus", "scripting", "activeTab", "storage", "clipboardWrite", "tabs"],
   "background": {
     "service_worker": "background.js"
   },
@@ -16,6 +16,12 @@
       "128": "icons/icon128.png"
     }
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["demo.html", "demo.css", "demo-install.js", "demo-video.mp4", "icons/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

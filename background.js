@@ -1,9 +1,16 @@
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.contextMenus.create({
     id: "generateAltText",
     title: "Generate Alt text",
     contexts: ["image"],
   });
+
+  // Show demo screen on installation
+  if (details.reason === 'install') {
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('demo.html')
+    });
+  }
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -182,6 +189,17 @@ function updateAltTextResult(tabId, altText) {
 
           // Update text content
           textSpan.innerText = "✅ Alt text: " + altText;
+          
+          // Automatically copy to clipboard
+          const textToCopy = altText;
+          navigator.clipboard.writeText(textToCopy).then(() => {
+            console.log("Alt text automatically copied to clipboard:", textToCopy);
+            // Briefly show that it was copied
+            copyBtn.innerText = "✔️";
+            setTimeout(() => (copyBtn.innerText = "📋"), 2000);
+          }).catch((error) => {
+            console.error("Failed to copy alt text to clipboard:", error);
+          });
           
           // Clear loader and rebuild with all elements
           loader.innerHTML = "";

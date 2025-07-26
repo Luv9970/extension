@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alt Text Generator - Welcome!</title>
+    <link rel="stylesheet" href="demo.css">
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <div class="logo-section">
+                <img src="icons/icon48.png" alt="Alt Text Generator Logo" class="demo-logo">
+                <h1>Welcome to Alt Text Generator!</h1>
+            </div>
+            <p class="demo-subtitle">Generate AI-powered alt text for images with just a right-click</p>
+        </div>
+
+        <div class="demo-content">
+            <div class="demo-video-section">
+                <h2>See How It Works</h2>
+                <div class="video-container">
+                    <video id="demoVideo" controls autoplay muted loop>
+                        <source src="demo-video.mp4" type="video/mp4">
+                        <!-- Fallback content if video doesn't load -->
+                        <div class="video-fallback">
+                            <div class="demo-steps">
+                                <div class="step">
+                                    <div class="step-number">1</div>
+                                    <div class="step-content">
+                                        <h3>Right-click any image</h3>
+                                        <p>Find an image on any webpage and right-click on it</p>
+                                    </div>
+                                </div>
+                                <div class="step">
+                                    <div class="step-number">2</div>
+                                    <div class="step-content">
+                                        <h3>Select "Generate Alt Text"</h3>
+                                        <p>Choose the option from the context menu</p>
+                                    </div>
+                                </div>
+                                <div class="step">
+                                    <div class="step-number">3</div>
+                                    <div class="step-content">
+                                        <h3>Get instant results</h3>
+                                        <p>AI-generated alt text is automatically copied to your clipboard</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </video>
+                </div>
+            </div>
+
+            <div class="demo-features">
+                <h2>Key Features</h2>
+                <div class="features-grid">
+                    <div class="feature">
+                        <div class="feature-icon">🤖</div>
+                        <h3>AI-Powered</h3>
+                        <p>Advanced AI analyzes images and generates accurate, descriptive alt text</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🌍</div>
+                        <h3>200+ Languages</h3>
+                        <p>Generate alt text in over 200 languages for global accessibility</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Instant Results</h3>
+                        <p>Right-click and get alt text copied to clipboard in seconds</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Privacy First</h3>
+                        <p>Your images are processed securely and never stored</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-actions">
+            <button id="getStartedBtn" class="primary-btn">Get Started</button>
+            <button id="closeBtn" class="secondary-btn">Close Demo</button>
+        </div>
+    </div>
+
+    <script src="demo-install.js"></script>
+</body>
+</html>
